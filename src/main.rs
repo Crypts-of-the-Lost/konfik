@@ -17,7 +17,7 @@ struct AppConfig {
 fn main() -> Result<(), ConfigError> {
     // Advanced usage
     let config = ConfigLoader::new()
-        .with_env_prefix("CONFIK")
+        .with_env_prefix("KONFIK")
         .with_config_files(vec!["app.toml".to_string()])
         .with_cli()
         .with_validation(|config| {

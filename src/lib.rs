@@ -6,6 +6,7 @@ use serde::de::DeserializeOwned;
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 
 /// Simple trait for loading configuration
 pub trait LoadConfig: Sized {
@@ -19,7 +20,7 @@ pub trait LoadConfig: Sized {
 /// Configuration loader with clean, composable API
 pub struct ConfigLoader {
     env_prefix: Option<String>,
-    config_files: Vec<String>,
+    config_files: Vec<PathBuf>,
     cli_enabled: bool,
     #[allow(clippy::type_complexity)]
     validation: Option<Box<dyn Fn(&serde_json::Value) -> Result<(), ConfigError>>>,
@@ -30,9 +31,9 @@ impl Default for ConfigLoader {
         Self {
             env_prefix: None,
             config_files: vec![
-                "config.json".to_string(),
-                "config.yaml".to_string(),
-                "config.toml".to_string(),
+                "config.json".into(),
+                "config.yaml".into(),
+                "config.toml".into(),
             ],
             cli_enabled: false,
             validation: None,
@@ -52,14 +53,15 @@ impl ConfigLoader {
     }
 
     /// Add a config file to check (in order)
-    pub fn with_config_file(mut self, path: impl Into<String>) -> Self {
-        self.config_files.push(path.into());
+    pub fn with_config_file<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.config_files.push(path.as_ref().to_path_buf());
         self
     }
 
     /// Clear default config files and set specific ones
-    pub fn with_config_files(mut self, files: Vec<String>) -> Self {
-        self.config_files = files;
+    pub fn with_config_files<P: AsRef<Path>>(mut self, files: Vec<P>) -> Self {
+        self.config_files
+            .extend(files.iter().map(|p| p.as_ref().to_path_buf()));
         self
     }
 
@@ -111,26 +113,39 @@ impl ConfigLoader {
         serde_json::from_value(config).map_err(ConfigError::from)
     }
 
-    fn load_file(&self, path: &str) -> Result<Option<serde_json::Value>, ConfigError> {
-        if !Path::new(path).exists() {
+    fn load_file<P: AsRef<Path>>(&self, path: P) -> Result<Option<serde_json::Value>, ConfigError> {
+        if !path.as_ref().exists() {
             return Ok(None);
         }
 
-        let content = fs::read_to_string(path)?;
-        let value = match Path::new(path).extension().and_then(|s| s.to_str()) {
-            Some("json") => serde_json::from_str(&content)?,
-            Some("yaml") | Some("yml") => {
-                let yaml: serde_yaml::Value = serde_yaml::from_str(&content)?;
-                serde_json::to_value(yaml)?
+        let content = fs::read(&path)?;
+        let value = self.parse_file_content(content);
+
+        Ok(value)
+    }
+
+    fn parse_file_content(&self, content: Vec<u8>) -> Option<serde_json::Value> {
+        if let Ok(v) = serde_json::from_slice(&content) {
+            return Some(v);
+        }
+
+        if let Ok(yaml) = serde_yaml::from_slice::<serde_yaml::Value>(&content) {
+            if let Ok(v) = serde_json::to_value(yaml) {
+                return Some(v);
             }
-            Some("toml") => {
-                let toml: toml::Value = toml::from_str(&content)?;
-                serde_json::to_value(toml)?
-            }
-            _ => return Ok(None),
+        }
+
+        let Ok(content) = str::from_utf8(&content) else {
+            return None;
         };
 
-        Ok(Some(value))
+        if let Ok(toml) = toml::from_str::<toml::Value>(content) {
+            if let Ok(v) = serde_json::to_value(toml) {
+                return Some(v);
+            }
+        }
+
+        None
     }
 
     fn load_env<T: ConfigMetadata>(&self) -> Result<serde_json::Value, ConfigError> {
