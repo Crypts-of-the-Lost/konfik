@@ -1,9 +1,12 @@
+//! # `konfik`
+
 mod error;
 
-pub use error::ConfigError;
+pub use error::Error;
 
 use serde::de::DeserializeOwned;
 use std::env;
+use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -11,10 +14,10 @@ use std::path::PathBuf;
 /// Simple trait for loading configuration
 pub trait LoadConfig: Sized {
     /// Load configuration from all available sources
-    fn load() -> Result<Self, ConfigError>;
+    fn load() -> Result<Self, Error>;
 
     /// Load configuration with a custom loader
-    fn load_with(loader: &ConfigLoader) -> Result<Self, ConfigError>;
+    fn load_with(loader: &ConfigLoader) -> Result<Self, Error>;
 }
 
 /// Configuration loader with clean, composable API
@@ -22,8 +25,22 @@ pub struct ConfigLoader {
     env_prefix: Option<String>,
     config_files: Vec<PathBuf>,
     cli_enabled: bool,
-    #[allow(clippy::type_complexity)]
-    validation: Option<Box<dyn Fn(&serde_json::Value) -> Result<(), ConfigError>>>,
+    #[expect(clippy::type_complexity)]
+    validation: Option<Box<dyn Fn(&serde_json::Value) -> Result<(), Error>>>,
+}
+
+impl Debug for ConfigLoader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConfigLoader")
+            .field("env_prefix", &self.env_prefix)
+            .field("config_files", &self.config_files)
+            .field("cli_enabled", &self.cli_enabled)
+            .field(
+                "validation",
+                &"Option<Box<dyn Fn(&serde_json::Value) -> Result<(), Error>>>",
+            )
+            .finish()
+    }
 }
 
 impl Default for ConfigLoader {
@@ -42,23 +59,22 @@ impl Default for ConfigLoader {
 }
 
 impl ConfigLoader {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Set environment variable prefix
+    #[must_use]
     pub fn with_env_prefix(mut self, prefix: impl Into<String>) -> Self {
         self.env_prefix = Some(prefix.into());
         self
     }
 
     /// Add a config file to check (in order)
+    #[must_use]
     pub fn with_config_file<P: AsRef<Path>>(mut self, path: P) -> Self {
         self.config_files.push(path.as_ref().to_path_buf());
         self
     }
 
     /// Clear default config files and set specific ones
+    #[must_use]
     pub fn with_config_files<P: AsRef<Path>>(mut self, files: Vec<P>) -> Self {
         self.config_files
             .extend(files.iter().map(|p| p.as_ref().to_path_buf()));
@@ -66,22 +82,24 @@ impl ConfigLoader {
     }
 
     /// Enable CLI argument parsing
-    pub fn with_cli(mut self) -> Self {
+    #[must_use]
+    pub const fn with_cli(mut self) -> Self {
         self.cli_enabled = true;
         self
     }
 
     /// Add validation function
+    #[must_use]
     pub fn with_validation<F>(mut self, f: F) -> Self
     where
-        F: Fn(&serde_json::Value) -> Result<(), ConfigError> + 'static,
+        F: Fn(&serde_json::Value) -> Result<(), Error> + 'static,
     {
         self.validation = Some(Box::new(f));
         self
     }
 
     /// Load configuration of type T
-    pub fn load<T>(&self) -> Result<T, ConfigError>
+    pub fn load<T>(&self) -> Result<T, Error>
     where
         T: DeserializeOwned + ConfigMetadata,
     {
@@ -89,18 +107,18 @@ impl ConfigLoader {
 
         // 1. Load from config files (lowest priority)
         for file_path in &self.config_files {
-            if let Some(file_config) = self.load_file(file_path)? {
+            if let Some(file_config) = Self::load_file(file_path)? {
                 config = merge_json(config, file_config);
             }
         }
 
         // 2. Load from environment (medium priority)
-        let env_config = self.load_env::<T>()?;
+        let env_config = self.load_env::<T>();
         config = merge_json(config, env_config);
 
         // 3. Load from CLI (highest priority)
         if self.cli_enabled {
-            let cli_config = self.load_cli::<T>()?;
+            let cli_config = self.load_cli::<T>();
             config = merge_json(config, cli_config);
         }
 
@@ -110,21 +128,21 @@ impl ConfigLoader {
         }
 
         // 5. Deserialize
-        serde_json::from_value(config).map_err(ConfigError::from)
+        serde_json::from_value(config).map_err(Error::from)
     }
 
-    fn load_file<P: AsRef<Path>>(&self, path: P) -> Result<Option<serde_json::Value>, ConfigError> {
+    fn load_file<P: AsRef<Path>>(path: P) -> Result<Option<serde_json::Value>, Error> {
         if !path.as_ref().exists() {
             return Ok(None);
         }
 
         let content = fs::read(&path)?;
-        let value = self.parse_file_content(content);
+        let value = Self::parse_file_content(content);
 
         Ok(value)
     }
 
-    fn parse_file_content(&self, content: Vec<u8>) -> Option<serde_json::Value> {
+    fn parse_file_content(content: Vec<u8>) -> Option<serde_json::Value> {
         if let Ok(v) = serde_json::from_slice(&content) {
             return Some(v);
         }
@@ -148,28 +166,30 @@ impl ConfigLoader {
         None
     }
 
-    fn load_env<T: ConfigMetadata>(&self) -> Result<serde_json::Value, ConfigError> {
+    fn load_env<T: ConfigMetadata>(&self) -> serde_json::Value {
         let mut env_map = serde_json::Map::new();
         let metadata = T::config_metadata();
 
         for field in &metadata.fields {
-            let env_var = match &field.env_name {
-                Some(custom) => custom.clone(),
-                None => match &self.env_prefix {
-                    Some(prefix) => format!("{}_{}", prefix, field.name.to_uppercase()),
-                    None => field.name.to_uppercase(),
+            let env_var = field.env_name.clone().map_or_else(
+                || {
+                    self.env_prefix.as_ref().map_or_else(
+                        || field.name.to_uppercase(),
+                        |prefix| format!("{}_{}", prefix, field.name.to_uppercase()),
+                    )
                 },
-            };
+                |custom| custom,
+            );
 
             if let Ok(value) = env::var(&env_var) {
                 env_map.insert(field.name.clone(), parse_env_value(&value));
             }
         }
 
-        Ok(serde_json::Value::Object(env_map))
+        serde_json::Value::Object(env_map)
     }
 
-    fn load_cli<T: ConfigMetadata>(&self) -> Result<serde_json::Value, ConfigError> {
+    fn load_cli<T: ConfigMetadata>(&self) -> serde_json::Value {
         // Simple CLI parsing - in real implementation you'd integrate with clap
         let args: Vec<String> = env::args().collect();
         let mut cli_map = serde_json::Map::new();
@@ -179,9 +199,10 @@ impl ConfigLoader {
         while i < args.len() {
             if let Some(arg) = args[i].strip_prefix("--") {
                 // Look for field with matching CLI name
-                if let Some(field) = metadata.fields.iter().find(|f| match &f.cli_name {
-                    Some(custom) => custom == arg,
-                    None => field_to_kebab(&f.name) == arg,
+                if let Some(field) = metadata.fields.iter().find(|f| {
+                    f.cli_name
+                        .as_ref()
+                        .map_or_else(|| field_to_kebab(&f.name) == arg, |custom| custom == arg)
                 }) {
                     if i + 1 < args.len() && !args[i + 1].starts_with("--") {
                         cli_map.insert(field.name.clone(), parse_env_value(&args[i + 1]));
@@ -198,26 +219,35 @@ impl ConfigLoader {
             }
         }
 
-        Ok(serde_json::Value::Object(cli_map))
+        serde_json::Value::Object(cli_map)
     }
 }
 
 /// Metadata about configuration fields
 pub trait ConfigMetadata {
+    /// idk
     fn config_metadata() -> ConfigMeta;
 }
 
+/// idk
 #[derive(Debug, Clone)]
 pub struct ConfigMeta {
+    /// idk
     pub name: String,
+    /// idk
     pub fields: Vec<FieldMeta>,
 }
 
+/// idk
 #[derive(Debug, Clone)]
 pub struct FieldMeta {
+    /// idk
     pub name: String,
+    /// idk
     pub env_name: Option<String>,
+    /// idk
     pub cli_name: Option<String>,
+    /// idk
     pub skip: bool,
 }
 

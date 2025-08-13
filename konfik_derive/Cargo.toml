@@ -2,6 +2,13 @@
 name = "konfik_derive"
 version = "0.1.0"
 edition = "2024"
+description = "config parser"
+license-file = "LICENSE"
+license = "MIT"
+repository = "https://github.com/kingananas20/konfik"
+readme = "README.md"
+keywords = ["config"]
+categories = ["configuration"]
 
 [dependencies]
 quote = "1.0.40"

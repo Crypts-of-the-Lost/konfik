@@ -46,11 +46,11 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
         }
 
         impl ::konfik::LoadConfig for #name {
-            fn load() -> Result<Self, ::konfik::ConfigError> {
-                ::konfik::ConfigLoader::new().load()
+            fn load() -> Result<Self, ::konfik::Error> {
+                ::konfik::ConfigLoader::default().load()
             }
 
-            fn load_with(loader: &::konfik::ConfigLoader) -> Result<Self, ::konfik::ConfigError> {
+            fn load_with(loader: &::konfik::ConfigLoader) -> Result<Self, ::konfik::Error> {
                 loader.load()
             }
         }
