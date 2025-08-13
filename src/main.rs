@@ -20,7 +20,7 @@ fn main() -> Result<(), Error> {
     // Advanced usage
     let config = ConfigLoader::default()
         .with_env_prefix("KONFIK")
-        .with_config_files(vec!["app.toml".to_string()])
+        .with_config_file("app.toml")
         .with_cli()
         .with_validation(|config| {
             if let Some(port) = config

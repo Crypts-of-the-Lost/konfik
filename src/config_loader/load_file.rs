@@ -10,6 +10,7 @@ impl ConfigLoader {
 
         let content = fs::read(&path)?;
         let value = Self::parse_file_content(content);
+        println!("{value:?}");
 
         Ok(value)
     }
