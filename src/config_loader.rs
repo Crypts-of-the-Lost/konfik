@@ -86,6 +86,15 @@ impl ConfigLoader {
     }
 
     /// Load configuration of type T
+    ///
+    /// # Errors
+    ///
+    /// This function returns an `Error` in the following situations:
+    ///
+    /// 1. **File I/O errors** – if reading any of the configuration files in `self.config_files` fails.
+    /// 2. **Deserialization errors** – if `serde_json::from_value` fails to convert the merged JSON into type `T`.
+    /// 3. **Validation errors** – if a validator function is provided in `self.validation` and it returns an error.
+    /// 4. **Other internal errors** – any other errors returned by `Self::load_file`, `Self::load_env`, or `Self::load_cli`.
     pub fn load<T>(&self) -> Result<T, Error>
     where
         T: DeserializeOwned + ConfigMetadata,
