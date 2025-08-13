@@ -1,38 +1,19 @@
+mod error;
+
+pub use error::ConfigError;
+
 use serde::de::DeserializeOwned;
 use std::env;
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, thiserror::Error)]
-pub enum ConfigError {
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-
-    #[error("Serialization error: {0}")]
-    Serde(#[from] serde_json::Error),
-
-    #[error("TOML error: {0}")]
-    Toml(#[from] toml::de::Error),
-
-    #[error("YAML error: {0}")]
-    Yaml(#[from] serde_yaml::Error),
-
-    #[error("Environment error: {0}")]
-    Environment(String),
-
-    #[error("Validation error: {0}")]
-    Validation(String),
-}
-
-pub type Result<T> = std::result::Result<T, ConfigError>;
-
 /// Simple trait for loading configuration
 pub trait LoadConfig: Sized {
     /// Load configuration from all available sources
-    fn load() -> Result<Self>;
+    fn load() -> Result<Self, ConfigError>;
 
     /// Load configuration with a custom loader
-    fn load_with(loader: &ConfigLoader) -> Result<Self>;
+    fn load_with(loader: &ConfigLoader) -> Result<Self, ConfigError>;
 }
 
 /// Configuration loader with clean, composable API
@@ -41,7 +22,7 @@ pub struct ConfigLoader {
     config_files: Vec<String>,
     cli_enabled: bool,
     #[allow(clippy::type_complexity)]
-    validation: Option<Box<dyn Fn(&serde_json::Value) -> Result<()>>>,
+    validation: Option<Box<dyn Fn(&serde_json::Value) -> Result<(), ConfigError>>>,
 }
 
 impl Default for ConfigLoader {
@@ -91,14 +72,14 @@ impl ConfigLoader {
     /// Add validation function
     pub fn with_validation<F>(mut self, f: F) -> Self
     where
-        F: Fn(&serde_json::Value) -> Result<()> + 'static,
+        F: Fn(&serde_json::Value) -> Result<(), ConfigError> + 'static,
     {
         self.validation = Some(Box::new(f));
         self
     }
 
     /// Load configuration of type T
-    pub fn load<T>(&self) -> Result<T>
+    pub fn load<T>(&self) -> Result<T, ConfigError>
     where
         T: DeserializeOwned + ConfigMetadata,
     {
@@ -130,7 +111,7 @@ impl ConfigLoader {
         serde_json::from_value(config).map_err(ConfigError::from)
     }
 
-    fn load_file(&self, path: &str) -> Result<Option<serde_json::Value>> {
+    fn load_file(&self, path: &str) -> Result<Option<serde_json::Value>, ConfigError> {
         if !Path::new(path).exists() {
             return Ok(None);
         }
@@ -152,7 +133,7 @@ impl ConfigLoader {
         Ok(Some(value))
     }
 
-    fn load_env<T: ConfigMetadata>(&self) -> Result<serde_json::Value> {
+    fn load_env<T: ConfigMetadata>(&self) -> Result<serde_json::Value, ConfigError> {
         let mut env_map = serde_json::Map::new();
         let metadata = T::config_metadata();
 
@@ -173,7 +154,7 @@ impl ConfigLoader {
         Ok(serde_json::Value::Object(env_map))
     }
 
-    fn load_cli<T: ConfigMetadata>(&self) -> Result<serde_json::Value> {
+    fn load_cli<T: ConfigMetadata>(&self) -> Result<serde_json::Value, ConfigError> {
         // Simple CLI parsing - in real implementation you'd integrate with clap
         let args: Vec<String> = env::args().collect();
         let mut cli_map = serde_json::Map::new();
