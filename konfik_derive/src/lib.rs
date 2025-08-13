@@ -23,7 +23,7 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
         let field_name = LitStr::new(&ident.to_string(), Span::call_site());
 
         Some(quote! {
-            ::confik::FieldMeta {
+            ::konfik::FieldMeta {
                 name: #field_name.to_string(),
                 env_name: None,
                 cli_name: None,
@@ -36,21 +36,21 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
 
     // quote! produces a proc_macro2::TokenStream internally — that's fine
     let expanded = quote! {
-        impl ::confik::ConfigMetadata for #name {
-            fn config_metadata() -> ::confik::ConfigMeta {
-                ::confik::ConfigMeta {
+        impl ::konfik::ConfigMetadata for #name {
+            fn config_metadata() -> ::konfik::ConfigMeta {
+                ::konfik::ConfigMeta {
                     name: #name_lit.to_string(),
                     fields: vec![#(#field_meta),*],
                 }
             }
         }
 
-        impl ::confik::LoadConfig for #name {
-            fn load() -> Result<Self, ::confik::ConfigError> {
-                ::confik::ConfigLoader::new().load()
+        impl ::konfik::LoadConfig for #name {
+            fn load() -> Result<Self, ::konfik::ConfigError> {
+                ::konfik::ConfigLoader::new().load()
             }
 
-            fn load_with(loader: &::confik::ConfigLoader) -> Result<Self, ::confik::ConfigError> {
+            fn load_with(loader: &::konfik::ConfigLoader) -> Result<Self, ::konfik::ConfigError> {
                 loader.load()
             }
         }

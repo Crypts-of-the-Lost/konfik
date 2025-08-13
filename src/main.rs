@@ -1,5 +1,5 @@
-use confik::{ConfigError, ConfigLoader};
-use confik_derive::Config;
+use konfik::{ConfigError, ConfigLoader};
+use konfik_derive::Config;
 
 #[derive(serde::Deserialize, Config, Debug)]
 #[allow(dead_code)]

@@ -1,5 +1,5 @@
 [package]
-name = "confik"
+name = "konfik"
 version = "0.1.0"
 edition = "2024"
 
@@ -10,10 +10,10 @@ toml = "0.8"
 serde_yaml = "0.9"
 thiserror = "1.0"
 
-[dependencies.confik_derive]
+[dependencies.konfik_derive]
 version = "0.1"
-path = "confik_derive"
+path = "konfik_derive"
 
 [workspace]
-members = ["confik_derive"]
+members = ["konfik_derive"]
 resolver = "3"
