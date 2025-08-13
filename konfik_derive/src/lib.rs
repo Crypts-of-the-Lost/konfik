@@ -1,9 +1,16 @@
+//! # `konfik_derive`
+
 // top-level imports
 use proc_macro::TokenStream; // <-- required for the proc-macro signature
 use proc_macro2::Span; // for LitStr::new
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, LitStr, parse_macro_input};
 
+/// Proc-macro
+///
+/// # Panics
+/// Panics when appliead to structs without named fields and
+/// on non struct types.
 #[proc_macro_derive(Config)]
 pub fn derive_config(input: TokenStream) -> TokenStream {
     // parse the incoming proc_macro::TokenStream into a syn AST
