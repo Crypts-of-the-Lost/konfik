@@ -1,7 +1,6 @@
 //! # Only for testing
 
-use konfik::{ConfigLoader, Error};
-use konfik_derive::Config;
+use konfik::{Config, ConfigLoader, Error};
 
 #[derive(serde::Deserialize, Config, Debug)]
 #[expect(dead_code)]
