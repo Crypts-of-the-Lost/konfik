@@ -9,6 +9,8 @@ readme = "README.md"
 keywords = ["config"]
 categories = ["configuration"]
 
+include = ["src/**", "Cargo.toml", "LICENSE", "README.md"]
+
 [dependencies]
 quote = "1.0.40"
 syn = { version = "2.0.104", features = ["full"] }

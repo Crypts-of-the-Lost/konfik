@@ -9,6 +9,8 @@ readme = "README.md"
 keywords = ["config"]
 categories = ["configuration"]
 
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -23,6 +25,9 @@ path = "konfik_derive"
 [lints]
 workspace = true
 
+# ---------
+# Workspace
+# ---------
 [workspace]
 members = ["konfik_derive"]
 resolver = "3"
