@@ -8,7 +8,7 @@ pub enum Error {
     Io(#[from] std::io::Error),
 
     /// Serde error
-    #[error("Serialization error: {0}")]
+    #[error("Serialization error: {0:?}")]
     Serde(#[from] serde_json::Error),
 
     /// Toml error
@@ -22,6 +22,16 @@ pub enum Error {
     /// Parse file format error
     #[error("Parse file format error")]
     ParseFileFormat(#[from] ParseFileFormatError),
+
+    /// Error if parsing fails because of missing fields
+    #[error("Config parsing error for type {type_name}: {source:?}")]
+    ConfigParse {
+        /// Name of the type
+        type_name: &'static str,
+        /// Source of the error
+        #[source]
+        source: serde_json::Error,
+    },
 
     /// Environment error
     #[error("Environment error: {0}")]

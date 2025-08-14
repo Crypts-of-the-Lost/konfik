@@ -16,7 +16,7 @@ struct AppConfig {
     runtime_data: Option<String>,
 }
 
-fn main() -> Result<(), Error> {
+fn main() {
     let config = ConfigLoader::default()
         .with_env_prefix("KONFIK")
         .with_config_file("app.toml")
@@ -32,9 +32,10 @@ fn main() -> Result<(), Error> {
             }
             Ok(())
         })
-        .load::<AppConfig>()?;
+        .load::<AppConfig>();
 
-    println!("{config:?}");
-
-    Ok(())
+    match config {
+        Ok(cfg) => println!("{cfg:#?}"),
+        Err(e) => eprintln!("{e}"),
+    }
 }

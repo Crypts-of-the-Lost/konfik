@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use super::ConfigLoader;
 use crate::{Error, config_meta::ConfigMetadata};
 use serde::de::DeserializeOwned;
@@ -15,7 +17,7 @@ impl ConfigLoader {
     /// 4. **Other internal errors** – any other errors returned by `Self::load_file`, `Self::load_env`, or `Self::load_cli`.
     pub fn load<T>(&self) -> Result<T, Error>
     where
-        T: DeserializeOwned + ConfigMetadata,
+        T: DeserializeOwned + ConfigMetadata + Debug,
     {
         let mut config = serde_json::Value::Object(serde_json::Map::new());
 
@@ -42,7 +44,10 @@ impl ConfigLoader {
         }
 
         // 5. Deserialize
-        serde_json::from_value(config).map_err(Error::from)
+        serde_json::from_value::<T>(config).map_err(|e| Error::ConfigParse {
+            type_name: std::any::type_name::<T>(),
+            source: e,
+        })
     }
 
     fn merge_json(base: serde_json::Value, overlay: serde_json::Value) -> serde_json::Value {
