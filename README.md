@@ -1,4 +1,4 @@
-<img src="banner.svg" width="100%" alt="Konfik banner">
+![konfik](banner.svg)
 
 # konfik
 
