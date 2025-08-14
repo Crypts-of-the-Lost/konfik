@@ -7,7 +7,7 @@ license-file = "LICENSE"
 repository = "https://github.com/kingananas20/konfik"
 readme = "README.md"
 keywords = ["config"]
-categories = ["configuration"]
+categories = ["config"]
 
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 
