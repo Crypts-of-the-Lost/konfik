@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 kingananas20
+
 //! # `konfik_derive`
 //!
 //! Procedural macro derive for the [`konfik`](https://docs.rs/konfik) configuration parsing library.

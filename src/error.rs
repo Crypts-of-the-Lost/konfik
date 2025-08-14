@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 kingananas20
+
 use crate::config_loader::ParseFileFormatError;
 
 /// Error type used in the crate

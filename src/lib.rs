@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 kingananas20
+
 //! # konfik
 //!
 //! A flexible and composable configuration parser for Rust applications that supports

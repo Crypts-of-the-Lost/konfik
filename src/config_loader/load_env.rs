@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 kingananas20
+
 use std::env;
 
 use super::ConfigLoader;

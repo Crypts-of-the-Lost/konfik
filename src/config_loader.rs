@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 kingananas20
+
 mod load;
 mod load_cli;
 mod load_env;

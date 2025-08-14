@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 kingananas20
+
 //! Some config metadata.
 
 /// Metadata about configuration fields
