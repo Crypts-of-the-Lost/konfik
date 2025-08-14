@@ -9,7 +9,7 @@ readme = "README.md"
 keywords = ["configuration", "cli", "validation", "file", "environment"]
 categories = ["config"]
 
-include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "banner.svg"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

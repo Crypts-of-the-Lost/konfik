@@ -1,3 +1,5 @@
+![Banner](banner.svg)
+
 # konfik
 
 A flexible and composable configuration parser for Rust applications that supports multiple sources and formats.
