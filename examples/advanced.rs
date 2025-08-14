@@ -1,4 +1,4 @@
-//! # `Only for testing`
+//! # Only for testing
 
 use konfik::{ConfigLoader, Error};
 use konfik_derive::Config;
@@ -17,7 +17,6 @@ struct AppConfig {
 }
 
 fn main() -> Result<(), Error> {
-    // Advanced usage
     let config = ConfigLoader::default()
         .with_env_prefix("KONFIK")
         .with_config_file("app.toml")

@@ -4,6 +4,8 @@ mod load_env;
 mod load_file;
 mod parse_env;
 
+pub use load_file::ParseFileFormatError;
+
 use crate::Error;
 use std::{
     fmt::Debug,

@@ -1,3 +1,5 @@
+use crate::config_loader::ParseFileFormatError;
+
 /// Error type used in the crate
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -16,6 +18,10 @@ pub enum Error {
     /// Yaml error
     #[error("YAML error: {0}")]
     Yaml(#[from] serde_yaml::Error),
+
+    /// Parse file format error
+    #[error("Parse file format error")]
+    ParseFileFormat(#[from] ParseFileFormatError),
 
     /// Environment error
     #[error("Environment error: {0}")]
