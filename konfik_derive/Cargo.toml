@@ -2,7 +2,7 @@
 name = "konfik_derive"
 version = "0.1.0"
 edition = "2024"
-description = "config parser"
+description = "Derive macro for konfik configuration parser"
 license-file = "LICENSE"
 repository = "https://github.com/kingananas20/konfik"
 readme = "README.md"
