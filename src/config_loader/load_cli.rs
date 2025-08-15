@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 kingananas20
 
+// MAKE AN ALL OPTIONAL STRUCT WITH PARSER DERIVE AND THEN CHANGE THE REQUIRED FIELDS TO BE REQUIRED. FIX NOT HAVING NESTED LOOPS TOO
+
 use super::ConfigLoader;
 use crate::{
     Error,
