@@ -108,7 +108,7 @@ mod error;
 
 pub use config_loader::ConfigLoader;
 pub use error::Error;
-pub use konfik_derive::Config;
+pub use konfik_derive::Konfik;
 
 /// Simple trait for loading configuration
 pub trait LoadConfig: Sized {

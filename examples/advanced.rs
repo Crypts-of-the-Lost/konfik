@@ -1,8 +1,8 @@
 //! # Only for testing
 
-use konfik::{Config, ConfigLoader, Error};
+use konfik::{ConfigLoader, Error, Konfik};
 
-#[derive(serde::Deserialize, Config, Debug)]
+#[derive(serde::Deserialize, Konfik, Debug)]
 #[expect(dead_code)]
 struct AppConfig {
     database_url: String,
