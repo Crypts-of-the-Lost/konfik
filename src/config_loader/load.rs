@@ -37,7 +37,7 @@ impl ConfigLoader {
 
         // 3. Load from CLI (highest priority)
         if self.cli_enabled {
-            let cli_config = Self::load_cli::<T>();
+            let cli_config = Self::load_cli::<T>(&config)?;
             config = Self::merge_json(config, cli_config);
         }
 

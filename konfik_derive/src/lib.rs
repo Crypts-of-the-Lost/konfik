@@ -105,7 +105,6 @@
 //! }
 //! ```
 
-// top-level imports
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
@@ -157,6 +156,8 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
         let skip = field_analysis.skip;
         let required = field_analysis.required;
         let has_default = field_analysis.has_default;
+        //let cli_name = field_analysis.cli_name;
+        //let env_name = field_analysis.env_name;
 
         // assume generate_field_type returns a proc_macro2::TokenStream or something quote-able
         let field_type = generate_field_type(&field.ty);
@@ -206,12 +207,16 @@ struct FieldAnalysis {
     skip: bool,
     required: bool,
     has_default: bool,
+    //env_name: TokenStream2,
+    //cli_name: TokenStream2,
 }
 
 /// Analyze a field to determine its requirements
 fn analyze_field(field: &Field) -> Result<FieldAnalysis, syn::Error> {
     let mut skip = false;
     let mut has_default = false;
+    //let mut env_name = TokenStream2::new();
+    //let mut cli_name = TokenStream2::new();
 
     for attr in &field.attrs {
         // handle #[serde(...)]
@@ -234,7 +239,13 @@ fn analyze_field(field: &Field) -> Result<FieldAnalysis, syn::Error> {
             attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("skip") {
                     skip = true;
-                }
+                } /*else if meta.path.is_ident("env") {
+                let s = meta.value()?.parse::<LitStr>()?;
+                env_name = quote! { Some(#s.to_string()) };
+                } else if meta.path.is_ident("cli") {
+                let s = meta.value()?.parse::<LitStr>()?;
+                cli_name = quote! { Some(#s.to_string()) };
+                }*/
                 Ok(())
             })?;
         }
@@ -247,6 +258,8 @@ fn analyze_field(field: &Field) -> Result<FieldAnalysis, syn::Error> {
         skip,
         required,
         has_default,
+        /*env_name,
+        cli_name,*/
     })
 }
 
