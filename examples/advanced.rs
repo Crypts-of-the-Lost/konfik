@@ -1,14 +1,16 @@
 //! # Only for testing
 
+use clap::Parser;
 use konfik::{ConfigLoader, Error, Konfik};
 
-#[derive(serde::Deserialize, Konfik, Debug)]
-#[expect(dead_code)]
+#[derive(serde::Deserialize, Konfik, Debug, Parser)]
 struct AppConfig {
     database_url: String,
 
+    #[arg(short)]
     port: u16,
 
+    #[arg(long)]
     debug: bool,
 
     #[serde(skip)]

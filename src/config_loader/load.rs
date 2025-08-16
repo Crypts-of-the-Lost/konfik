@@ -20,7 +20,7 @@ impl ConfigLoader {
     /// 4. **Other internal errors** – any other errors returned by `Self::load_file`, `Self::load_env`, or `Self::load_cli`.
     pub fn load<T>(&self) -> Result<T, Error>
     where
-        T: DeserializeOwned + ConfigMetadata + Debug,
+        T: DeserializeOwned + ConfigMetadata + Debug + clap::Parser,
     {
         let mut config = serde_json::Value::Object(serde_json::Map::new());
 
@@ -37,7 +37,7 @@ impl ConfigLoader {
 
         // 3. Load from CLI (highest priority)
         if self.cli_enabled {
-            let cli_config = Self::load_cli::<T>(&config)?;
+            let cli_config = Self::load_cli::<T>(&config);
             config = Self::merge_json(config, cli_config);
         }
 

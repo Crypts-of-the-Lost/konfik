@@ -111,7 +111,7 @@ pub use error::Error;
 pub use konfik_derive::Konfik;
 
 /// Simple trait for loading configuration
-pub trait LoadConfig: Sized {
+pub trait LoadConfig: Sized + clap::Parser {
     /// Load configuration from all available sources
     ///
     /// # Errors
