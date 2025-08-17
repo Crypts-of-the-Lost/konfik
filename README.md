@@ -264,3 +264,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Radicle
+
+To clone this repository on [Radicle](https://radicle.xyz), simply run:
+
+    rad clone rad:z2FpyXb6X6ENg3MvQPkMfqVN7LcD8
