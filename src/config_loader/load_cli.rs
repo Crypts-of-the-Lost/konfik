@@ -32,11 +32,16 @@ impl ConfigLoader {
         });
 
         let matches = cmd.get_matches();
+        println!("{matches:?}");
 
-        Self::arg_matches_to_value(&matches)
+        Self::arg_matches_to_value(&matches, &missing_required)
     }
 
-    fn arg_matches_to_value(matches: &ArgMatches) -> Value {
+    #[expect(clippy::too_many_lines, clippy::cognitive_complexity)]
+    fn arg_matches_to_value(
+        matches: &ArgMatches,
+        required_fields: &std::collections::HashSet<String>,
+    ) -> Value {
         use clap::Id;
 
         let mut obj = Map::new();
@@ -47,6 +52,22 @@ impl ConfigLoader {
             // Skip groups
             if matches.try_get_many::<Id>(key).is_ok() {
                 continue;
+            }
+
+            // Skip values that come from default sources (not user-specified)
+            // unless they are required fields
+            if let Some(source) = matches.value_source(key) {
+                use clap::parser::ValueSource;
+                match source {
+                    ValueSource::CommandLine => {} // Only process command line args
+                    ValueSource::DefaultValue => {
+                        // Only skip default values if the field is not required
+                        if !required_fields.contains(key) {
+                            continue;
+                        }
+                    }
+                    ValueSource::EnvVariable | _ => continue, // Skip env vars since we handle them separately
+                }
             }
 
             // Multi-values
@@ -81,13 +102,60 @@ impl ConfigLoader {
                 continue;
             }
 
-            // Numeric example (u64)
+            // Try different numeric types
+            // u16
+            if let Ok(Some(n)) = matches.try_get_one::<u16>(key) {
+                obj.insert(key.to_string(), Value::Number(serde_json::Number::from(*n)));
+                continue;
+            }
+
+            // u32
+            if let Ok(Some(n)) = matches.try_get_one::<u32>(key) {
+                obj.insert(key.to_string(), Value::Number(serde_json::Number::from(*n)));
+                continue;
+            }
+
+            // u64
             if let Ok(Some(n)) = matches.try_get_one::<u64>(key) {
                 if let Some(num) = serde_json::Number::from(*n).as_i64() {
                     obj.insert(
                         key.to_string(),
                         Value::Number(serde_json::Number::from(num)),
                     );
+                }
+                continue;
+            }
+
+            // i16
+            if let Ok(Some(n)) = matches.try_get_one::<i16>(key) {
+                obj.insert(key.to_string(), Value::Number(serde_json::Number::from(*n)));
+                continue;
+            }
+
+            // i32
+            if let Ok(Some(n)) = matches.try_get_one::<i32>(key) {
+                obj.insert(key.to_string(), Value::Number(serde_json::Number::from(*n)));
+                continue;
+            }
+
+            // i64
+            if let Ok(Some(n)) = matches.try_get_one::<i64>(key) {
+                obj.insert(key.to_string(), Value::Number(serde_json::Number::from(*n)));
+                continue;
+            }
+
+            // f32
+            if let Ok(Some(n)) = matches.try_get_one::<f32>(key) {
+                if let Some(num) = serde_json::Number::from_f64(f64::from(*n)) {
+                    obj.insert(key.to_string(), Value::Number(num));
+                }
+                continue;
+            }
+
+            // f64
+            if let Ok(Some(n)) = matches.try_get_one::<f64>(key) {
+                if let Some(num) = serde_json::Number::from_f64(*n) {
+                    obj.insert(key.to_string(), Value::Number(num));
                 }
                 continue;
             }
@@ -119,7 +187,7 @@ impl ConfigLoader {
             );
             obj.insert(
                 sub_name.to_string(),
-                Self::arg_matches_to_value(sub_matches),
+                Self::arg_matches_to_value(sub_matches, required_fields),
             );
         }
 

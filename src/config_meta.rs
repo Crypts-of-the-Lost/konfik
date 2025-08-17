@@ -4,6 +4,7 @@
 //! Enhanced config metadata with field requirement analysis.
 
 use serde_json::Value;
+use std::collections::HashSet;
 
 /// Metadata about configuration fields
 pub trait ConfigMetadata {
@@ -12,7 +13,7 @@ pub trait ConfigMetadata {
 
     /// Analyze which fields are required based on current config state
     #[must_use]
-    fn analyze_required_fields(current_config: &Value) -> Vec<String> {
+    fn analyze_required_fields(current_config: &Value) -> HashSet<String> {
         let metadata = Self::config_metadata();
         Self::find_missing_required_fields(&metadata, current_config, "")
     }
@@ -23,8 +24,8 @@ pub trait ConfigMetadata {
         metadata: &ConfigMeta,
         config: &Value,
         path_prefix: &str,
-    ) -> Vec<String> {
-        let mut missing = Vec::new();
+    ) -> HashSet<String> {
+        let mut missing = HashSet::new();
 
         for field in &metadata.fields {
             let field_path = if path_prefix.is_empty() {
@@ -52,7 +53,7 @@ pub trait ConfigMetadata {
                 _ => {
                     // Field is missing or null
                     if field.required && !field.has_default {
-                        missing.push(field_path);
+                        missing.insert(field_path);
                     }
                 }
             }
