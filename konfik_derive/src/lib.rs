@@ -106,12 +106,9 @@
 //! ```
 
 use proc_macro::TokenStream;
-use proc_macro2::Span;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{
-    Data, DeriveInput, Field, Fields, GenericArgument, LitStr, PathArguments, Type, TypePath,
-    parse_macro_input,
-};
+use syn::{Data, DeriveInput, Field, Fields, Type, TypePath, parse_macro_input};
 
 /// # `Config`
 ///
@@ -123,68 +120,18 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
 
-    let fields = match &input.data {
-        Data::Struct(data) => match &data.fields {
-            Fields::Named(fields) => &fields.named,
-            _ => {
-                return syn::Error::new_spanned(&input, "Only named fields are supported")
-                    .to_compile_error()
-                    .into();
-            }
-        },
-        _ => {
-            return syn::Error::new_spanned(&input, "Only structs are supported")
-                .to_compile_error()
-                .into();
-        }
+    let Data::Struct(data) = &input.data else {
+        return syn::Error::new_spanned(&input, "Only structs are supported")
+            .to_compile_error()
+            .into();
     };
 
-    // collect token streams for each field
-    let mut field_meta_tokens = Vec::with_capacity(fields.len());
-
-    for field in fields {
-        let Some(ident) = &field.ident else { continue };
-        let field_name = LitStr::new(&ident.to_string(), Span::call_site());
-
-        // handle possible syn::Error from analyze_field
-        let field_analysis = match analyze_field(field) {
-            Ok(fa) => fa,
-            Err(err) => return err.to_compile_error().into(),
-        };
-
-        // bind values to simple idents so `quote!` can interpolate them
-        let skip = field_analysis.skip;
-        let required = field_analysis.required;
-        let has_default = field_analysis.has_default;
-        //let cli_name = field_analysis.cli_name;
-        //let env_name = field_analysis.env_name;
-
-        // assume generate_field_type returns a proc_macro2::TokenStream or something quote-able
-        let field_type = generate_field_type(&field.ty);
-
-        field_meta_tokens.push(quote! {
-            ::konfik::config_meta::FieldMeta {
-                name: #field_name.to_string(),
-                env_name: None,
-                cli_name: None,
-                skip: #skip,
-                required: #required,
-                has_default: #has_default,
-                field_type: #field_type,
-                nested_metadata: None, // TODO: Implement nested struct analysis
-            }
-        });
-    }
-
-    let name_lit = LitStr::new(&name.to_string(), Span::call_site());
+    let field_meta_tokens = generate_field_meta(&data.fields, "");
 
     let expanded = quote! {
         impl ::konfik::config_meta::ConfigMetadata for #name {
-            fn config_metadata() -> ::konfik::config_meta::ConfigMeta {
-                ::konfik::config_meta::ConfigMeta {
-                    name: #name_lit.to_string(),
-                    fields: vec![#(#field_meta_tokens),*],
-                }
+            fn config_metadata() -> Vec<::konfik::config_meta::FieldMeta> {
+                vec![#field_meta_tokens]
             }
         }
 
@@ -200,6 +147,45 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+#[expect(clippy::unwrap_used)]
+fn generate_field_meta(fields: &Fields, prefix: &str) -> TokenStream2 {
+    let mut tokens = TokenStream2::new();
+
+    for field in fields {
+        let fname = field.ident.as_ref().unwrap().to_string();
+
+        let full_path = if prefix.is_empty() {
+            fname.clone()
+        } else {
+            format!("{prefix}.{fname}")
+        };
+
+        let ty_str = match &field.ty {
+            Type::Path(TypePath { path, .. }) => path.segments.last().unwrap().ident.to_string(),
+            _ => "unknown".to_string(),
+        };
+
+        let FieldAnalysis {
+            skip,
+            required,
+            has_default,
+        } = analyze_field(field).unwrap();
+
+        tokens.extend(quote! {
+            ::konfik::config_meta::FieldMeta {
+                name: #fname,
+                path: #full_path,
+                ty: #ty_str,
+                required: #required,
+                skip: #skip,
+                has_default: #has_default,
+            }
+        });
+    }
+
+    tokens
 }
 
 /// Analysis result for a field
@@ -273,80 +259,4 @@ fn is_option_type(ty: &Type) -> bool {
         }
     }
     false
-}
-
-/// Generate field type enum for a Rust type
-fn generate_field_type(ty: &Type) -> proc_macro2::TokenStream {
-    if let Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            let type_name = segment.ident.to_string();
-
-            match type_name.as_str() {
-                "String" | "str" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::String) };
-                }
-                "bool" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::Bool) };
-                }
-                "i8" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::I8) };
-                }
-                "i16" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::I16) };
-                }
-                "i32" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::I32) };
-                }
-                "i64" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::I64) };
-                }
-                "u8" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::U8) };
-                }
-                "u16" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::U16) };
-                }
-                "u32" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::U32) };
-                }
-                "u64" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::U64) };
-                }
-                "f32" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::F32) };
-                }
-                "f64" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::F64) };
-                }
-                "char" => {
-                    return quote! { ::konfik::config_meta::FieldType::Primitive(::konfik::config_meta::PrimitiveType::Char) };
-                }
-                "Option" => {
-                    if let PathArguments::AngleBracketed(args) = &segment.arguments {
-                        if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
-                            let inner_field_type = generate_field_type(inner_type);
-                            return quote! { ::konfik::config_meta::FieldType::Optional(Box::new(#inner_field_type)) };
-                        }
-                    }
-                    return quote! { ::konfik::config_meta::FieldType::Other("Option".to_string()) };
-                }
-                "Vec" => {
-                    if let PathArguments::AngleBracketed(args) = &segment.arguments {
-                        if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
-                            let inner_field_type = generate_field_type(inner_type);
-                            return quote! { ::konfik::config_meta::FieldType::Vec(Box::new(#inner_field_type)) };
-                        }
-                    }
-                    return quote! { ::konfik::config_meta::FieldType::Other("Vec".to_string()) };
-                }
-                _ => {
-                    let type_string = LitStr::new(&type_name, Span::call_site());
-                    return quote! { ::konfik::config_meta::FieldType::Struct(#type_string.to_string()) };
-                }
-            }
-        }
-        return quote! { ::konfik::config_meta::FieldType::Other("Unknown".to_string()) };
-    }
-
-    quote! { ::konfik::config_meta::FieldType::Other("Complex".to_string()) }
 }
