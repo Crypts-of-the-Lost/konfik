@@ -4,26 +4,21 @@
 use std::env;
 
 use super::ConfigLoader;
-use crate::config_meta::ConfigMetadata;
+use crate::config_meta::ConfigMeta;
 
 impl ConfigLoader {
-    pub(super) fn load_env<T: ConfigMetadata>(&self) -> serde_json::Value {
+    pub(super) fn load_env<T: ConfigMeta>(&self) -> serde_json::Value {
         let mut env_map = serde_json::Map::new();
         let metadata = T::config_metadata();
 
-        for field in &metadata.fields {
-            let env_var = field.env_name.clone().map_or_else(
-                || {
-                    self.env_prefix.as_ref().map_or_else(
-                        || field.name.to_uppercase(),
-                        |prefix| format!("{}_{}", prefix, field.name.to_uppercase()),
-                    )
-                },
-                |custom| custom,
+        for field in &metadata {
+            let env_var = self.env_prefix.as_ref().map_or_else(
+                || field.name.to_uppercase(),
+                |prefix| format!("{}_{}", prefix, field.name.to_uppercase()),
             );
 
             if let Ok(value) = env::var(&env_var) {
-                env_map.insert(field.name.clone(), Self::parse_env_value(&value));
+                env_map.insert(field.name.to_string(), Self::parse_env_value(&value));
             }
         }
 

@@ -4,7 +4,7 @@
 use std::fmt::Debug;
 
 use super::ConfigLoader;
-use crate::{Error, config_meta::ConfigMetadata};
+use crate::{Error, config_meta::ConfigMeta};
 use serde::de::DeserializeOwned;
 
 impl ConfigLoader {
@@ -20,7 +20,7 @@ impl ConfigLoader {
     /// 4. **Other internal errors** – any other errors returned by `Self::load_file`, `Self::load_env`, or `Self::load_cli`.
     pub fn load<T>(&self) -> Result<T, Error>
     where
-        T: DeserializeOwned + ConfigMetadata + Debug + clap::Parser,
+        T: DeserializeOwned + ConfigMeta + Debug + clap::Parser,
     {
         let mut config = serde_json::Value::Object(serde_json::Map::new());
 

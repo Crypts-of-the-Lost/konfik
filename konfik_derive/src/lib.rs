@@ -106,7 +106,7 @@
 //! ```
 
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{Data, DeriveInput, Field, Fields, Type, TypePath, parse_macro_input};
 
@@ -126,14 +126,10 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
             .into();
     };
 
-    let field_meta_tokens = generate_field_meta(&data.fields, "");
+    let config_meta = generate_config_meta(&data.fields, name);
 
-    let expanded = quote! {
-        impl ::konfik::config_meta::ConfigMetadata for #name {
-            fn config_metadata() -> Vec<::konfik::config_meta::FieldMeta> {
-                vec![#field_meta_tokens]
-            }
-        }
+    TokenStream::from(quote! {
+        #config_meta
 
         impl ::konfik::LoadConfig for #name {
             fn load() -> Result<Self, ::konfik::Error> {
@@ -144,23 +140,16 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
                 loader.load()
             }
         }
-    };
-
-    TokenStream::from(expanded)
+    })
 }
 
 #[expect(clippy::unwrap_used)]
-fn generate_field_meta(fields: &Fields, prefix: &str) -> TokenStream2 {
-    let mut tokens = TokenStream2::new();
+fn generate_config_meta(fields: &Fields, parent_name: &Ident) -> TokenStream2 {
+    let mut field_meta_tokens = Vec::new();
+    let mut field_impl_tokens = Vec::new();
 
     for field in fields {
         let fname = field.ident.as_ref().unwrap().to_string();
-
-        let full_path = if prefix.is_empty() {
-            fname.clone()
-        } else {
-            format!("{prefix}.{fname}")
-        };
 
         let ty_str = match &field.ty {
             Type::Path(TypePath { path, .. }) => path.segments.last().unwrap().ident.to_string(),
@@ -173,19 +162,31 @@ fn generate_field_meta(fields: &Fields, prefix: &str) -> TokenStream2 {
             has_default,
         } = analyze_field(field).unwrap();
 
-        tokens.extend(quote! {
-            ::konfik::config_meta::FieldMeta {
-                name: #fname,
-                path: #full_path,
-                ty: #ty_str,
-                required: #required,
-                skip: #skip,
-                has_default: #has_default,
-            }
+        field_meta_tokens.extend(quote! { ::konfik::config_meta::FieldMeta {
+            name: #fname,
+            path: #fname,
+            ty: #ty_str,
+            required: #required,
+            skip: #skip,
+            has_default: #has_default,
+        }});
+
+        field_impl_tokens.extend(quote! {
+            fields.extend(Self::correct_paths(<&mut &#field.ty as ::konfik::config_meta::MaybeConfigMeta>::config_metadata()));
         });
     }
 
-    tokens
+    quote! {
+        impl ::konfik::config_meta::ConfigMeta for #parent_name {
+            fn config_metadata() -> Vec<::konfik::config_meta::FieldMeta> {
+                let mut fields = vec![ #(#field_meta_tokens),* ];
+
+                #(#field_impl_tokens)*
+
+                fields
+            }
+        }
+    }
 }
 
 /// Analysis result for a field

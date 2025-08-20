@@ -2,13 +2,13 @@
 // Copyright (c) 2025 kingananas20
 
 use super::ConfigLoader;
-use crate::config_meta::ConfigMetadata;
+use crate::config_meta::ConfigMeta;
 use clap::ArgMatches;
 use serde_json::{Map, Value};
 use std::ffi::OsString;
 
 impl ConfigLoader {
-    pub(super) fn load_cli<T: ConfigMetadata + clap::Parser>(current_config: &Value) -> Value {
+    pub(super) fn load_cli<T: ConfigMeta + clap::Parser>(current_config: &Value) -> Value {
         //let metadata = T::config_metadata();
 
         // Analyze which fields are still required
