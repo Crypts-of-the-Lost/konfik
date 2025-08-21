@@ -1,7 +1,10 @@
 //! # Only for testing
 
 use clap::Parser;
-use konfik::{ConfigLoader, Error, Konfik, config_meta::MaybeConfigMeta};
+use konfik::{
+    ConfigLoader, Error, Konfik, NestedTypes,
+    config_meta::{ConfigMeta, MaybeConfigMeta},
+};
 
 #[derive(serde::Deserialize, Konfik, Debug, Parser)]
 struct AppConfig {
@@ -13,8 +16,22 @@ struct AppConfig {
     #[arg(long)]
     debug: bool,
 
+    #[command(flatten)]
+    #[serde(default)]
+    logging: Logging,
+
     #[serde(skip)]
     runtime_data: Option<String>,
+}
+
+#[derive(serde::Deserialize, Debug, Clone, clap::Args, NestedTypes, Default)]
+struct Logging {
+    #[serde(default)]
+    level: String,
+
+    #[serde(default)]
+    #[arg(short)]
+    colors: bool,
 }
 
 fn main() {
@@ -35,8 +52,16 @@ fn main() {
         })
         .load::<AppConfig>();
 
-    match config {
-        Ok(cfg) => println!("{cfg:#?}"),
-        Err(e) => eprintln!("{e}"),
-    }
+    let _config = match config {
+        Ok(cfg) => {
+            println!("{cfg:#?}");
+            cfg
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
+
+    println!("{:?}", AppConfig::config_metadata());
 }

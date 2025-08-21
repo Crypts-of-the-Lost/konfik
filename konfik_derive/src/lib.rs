@@ -143,6 +143,25 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
     })
 }
 
+/// skldfjals
+#[proc_macro_derive(NestedTypes, attributes(konfik, serde))]
+pub fn derive_nested_types(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+
+    let Data::Struct(data) = &input.data else {
+        return syn::Error::new_spanned(&input, "Only structs are supported")
+            .to_compile_error()
+            .into();
+    };
+
+    let config_meta = generate_config_meta(&data.fields, name);
+
+    TokenStream::from(quote! {
+        #config_meta
+    })
+}
+
 #[expect(clippy::unwrap_used)]
 fn generate_config_meta(fields: &Fields, parent_name: &Ident) -> TokenStream2 {
     let mut field_meta_tokens = Vec::new();
