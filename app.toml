@@ -1,1 +1,5 @@
+database_url = "google.com"
 
+[logging]
+colors = true
+level = "info"

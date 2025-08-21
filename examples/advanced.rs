@@ -1,10 +1,7 @@
 //! # Only for testing
 
 use clap::Parser;
-use konfik::{
-    ConfigLoader, Error, Konfik, NestedTypes,
-    config_meta::{ConfigMeta, MaybeConfigMeta},
-};
+use konfik::{ConfigLoader, Error, Konfik, NestedTypes, config_meta::ConfigMeta};
 
 #[derive(serde::Deserialize, Konfik, Debug, Parser)]
 struct AppConfig {
@@ -24,12 +21,10 @@ struct AppConfig {
     runtime_data: Option<String>,
 }
 
-#[derive(serde::Deserialize, Debug, Clone, clap::Args, NestedTypes, Default)]
+#[derive(serde::Deserialize, Debug, Clone, clap::Args, Default, NestedTypes)]
 struct Logging {
-    #[serde(default)]
     level: String,
 
-    #[serde(default)]
     #[arg(short)]
     colors: bool,
 }
