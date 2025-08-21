@@ -1,7 +1,7 @@
 //! # Only for testing
 
 use clap::Parser;
-use konfik::{ConfigLoader, Error, Konfik};
+use konfik::{ConfigLoader, Error, Konfik, config_meta::MaybeConfigMeta};
 
 #[derive(serde::Deserialize, Konfik, Debug, Parser)]
 struct AppConfig {

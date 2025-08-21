@@ -77,15 +77,17 @@ fn get_nested_value<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
 pub trait MaybeConfigMeta {
     /// Get the metadata of a field
     #[must_use]
-    fn config_metadata() -> Vec<FieldMeta> {
+    fn maybe_config_metadata(&self) -> Vec<FieldMeta>;
+}
+
+impl<T> MaybeConfigMeta for &T {
+    fn maybe_config_metadata(&self) -> Vec<FieldMeta> {
         Vec::new()
     }
 }
 
-impl<T> MaybeConfigMeta for &T {}
-
 impl<T: ConfigMeta> MaybeConfigMeta for &mut &T {
-    fn config_metadata() -> Vec<FieldMeta> {
+    fn maybe_config_metadata(&self) -> Vec<FieldMeta> {
         T::config_metadata()
     }
 }

@@ -106,9 +106,9 @@
 //! ```
 
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{Data, DeriveInput, Field, Fields, Type, TypePath, parse_macro_input};
+use syn::{Data, DeriveInput, Field, Fields, LitStr, Type, TypePath, parse_macro_input};
 
 /// # `Config`
 ///
@@ -150,11 +150,13 @@ fn generate_config_meta(fields: &Fields, parent_name: &Ident) -> TokenStream2 {
 
     for field in fields {
         let fname = field.ident.as_ref().unwrap().to_string();
+        let fname_lit = LitStr::new(&fname, Span::call_site());
 
         let ty_str = match &field.ty {
             Type::Path(TypePath { path, .. }) => path.segments.last().unwrap().ident.to_string(),
             _ => "unknown".to_string(),
         };
+        let ty_lit = LitStr::new(&ty_str, Span::call_site());
 
         let FieldAnalysis {
             skip,
@@ -162,17 +164,27 @@ fn generate_config_meta(fields: &Fields, parent_name: &Ident) -> TokenStream2 {
             has_default,
         } = analyze_field(field).unwrap();
 
-        field_meta_tokens.extend(quote! { ::konfik::config_meta::FieldMeta {
-            name: #fname,
-            path: #fname,
-            ty: #ty_str,
+        field_meta_tokens.push(quote! { ::konfik::config_meta::FieldMeta {
+            name: #fname_lit,
+            path: #fname_lit.to_string(),
+            ty: #ty_lit,
             required: #required,
             skip: #skip,
             has_default: #has_default,
         }});
 
-        field_impl_tokens.extend(quote! {
-            fields.extend(Self::correct_paths(<&mut &#field.ty as ::konfik::config_meta::MaybeConfigMeta>::config_metadata()));
+        let ty = field.ty.clone();
+
+        field_impl_tokens.push(quote! {
+            {
+                // create an uninitialized value so we have a value expression of type `#ty`
+                let mut __konfik_tmp: ::core::mem::MaybeUninit<#ty> = ::core::mem::MaybeUninit::uninit();
+                // SAFETY: we do NOT read or dereference the value; we only form a reference to it
+                // so the method-dispatch (autoref) can pick the impl. Implementations MUST NOT
+                // access `self` (they should be type-level only).
+                let __konfik_meta = unsafe { (&mut &*__konfik_tmp.as_mut_ptr()).maybe_config_metadata() };
+                fields.extend(Self::correct_paths(__konfik_meta, stringify!(#parent_name)));
+            }
         });
     }
 
