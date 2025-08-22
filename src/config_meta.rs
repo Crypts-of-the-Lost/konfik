@@ -73,26 +73,8 @@ fn get_nested_value<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
     Some(current)
 }
 
-/// Some trait to have specialization
-pub trait MaybeConfigMeta {
-    /// Get the metadata of a field
-    #[must_use]
-    fn maybe_config_metadata(&self) -> Vec<FieldMeta>;
-}
-
-impl<T> MaybeConfigMeta for &T {
-    fn maybe_config_metadata(&self) -> Vec<FieldMeta> {
-        Vec::new()
-    }
-}
-
-impl<T: ConfigMeta> MaybeConfigMeta for &mut &T {
-    fn maybe_config_metadata(&self) -> Vec<FieldMeta> {
-        T::config_metadata()
-    }
-}
-
 /// Field metadata with enhanced requirement detection
+#[expect(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
 pub struct FieldMeta {
     /// Name of the field
@@ -107,4 +89,6 @@ pub struct FieldMeta {
     pub skip: bool,
     /// If the field has `#[serde(default)]`
     pub has_default: bool,
+    /// If it's a nested type
+    pub nested: bool,
 }

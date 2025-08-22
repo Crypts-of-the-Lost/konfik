@@ -105,10 +105,13 @@
 //! }
 //! ```
 
+mod analyze_field;
+mod generate_config_meta;
+
+use generate_config_meta::generate_config_meta;
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{Data, DeriveInput, Field, Fields, LitStr, Type, TypePath, parse_macro_input};
+use syn::{Data, DeriveInput, parse_macro_input};
 
 /// # `Config`
 ///
@@ -160,144 +163,4 @@ pub fn derive_nested_types(input: TokenStream) -> TokenStream {
     TokenStream::from(quote! {
         #config_meta
     })
-}
-
-#[expect(clippy::unwrap_used)]
-fn generate_config_meta(fields: &Fields, parent_name: &Ident) -> TokenStream2 {
-    let mut field_meta_tokens = Vec::new();
-    let mut field_impl_tokens = Vec::new();
-
-    for field in fields {
-        let fname = field.ident.as_ref().unwrap().to_string();
-        let fname_lit = LitStr::new(&fname, Span::call_site());
-
-        let ty_str = match &field.ty {
-            Type::Path(TypePath { path, .. }) => path.segments.last().unwrap().ident.to_string(),
-            _ => "unknown".to_string(),
-        };
-        let ty_lit = LitStr::new(&ty_str, Span::call_site());
-
-        let FieldAnalysis {
-            skip,
-            required,
-            has_default,
-            nested,
-        } = analyze_field(field).unwrap();
-
-        field_meta_tokens.push(quote! { ::konfik::config_meta::FieldMeta {
-            name: #fname_lit,
-            path: #fname_lit.to_string(),
-            ty: #ty_lit,
-            required: #required,
-            skip: #skip,
-            has_default: #has_default,
-        }});
-
-        if !nested {
-            continue;
-        }
-
-        let ty = field.ty.clone();
-
-        field_impl_tokens.push(quote! {
-            {
-                /*// create an uninitialized value so we have a value expression of type `#ty`
-                let mut __konfik_tmp: ::core::mem::MaybeUninit<#ty> = ::core::mem::MaybeUninit::uninit();
-                // SAFETY: we do NOT read or dereference the value; we only form a reference to it
-                // so the method-dispatch (autoref) can pick the impl. Implementations MUST NOT
-                // access `self` (they should be type-level only).
-                let __konfik_meta = unsafe { (&mut &*__konfik_tmp.as_mut_ptr()).maybe_config_metadata() };
-                fields.extend(Self::correct_paths(__konfik_meta, #fname));*/
-
-                fields.extend(Self::correct_paths(<#ty as ::konfik::config_meta::ConfigMeta>::config_metadata(), #fname));
-            }
-        });
-    }
-
-    quote! {
-        impl ::konfik::config_meta::ConfigMeta for #parent_name {
-            fn config_metadata() -> Vec<::konfik::config_meta::FieldMeta> {
-                let mut fields = vec![ #(#field_meta_tokens),* ];
-
-                #(#field_impl_tokens)*
-
-                fields
-            }
-        }
-    }
-}
-
-/// Analysis result for a field
-#[expect(clippy::struct_excessive_bools)]
-struct FieldAnalysis {
-    skip: bool,
-    required: bool,
-    has_default: bool,
-    nested: bool,
-}
-
-/// Analyze a field to determine its requirements
-fn analyze_field(field: &Field) -> Result<FieldAnalysis, syn::Error> {
-    let mut analysis = FieldAnalysis {
-        skip: false,
-        required: false,
-        has_default: false,
-        nested: false,
-    };
-
-    for attr in &field.attrs {
-        // handle #[konfik(...)]
-        if attr.path().is_ident("konfik") {
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("skip") {
-                    analysis.skip = true;
-                } else if meta.path.is_ident("nested") {
-                    analysis.nested = true;
-                }
-                Ok(())
-            })?;
-        }
-
-        // handle #[command(...)]
-        if attr.path().is_ident("command") {
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("flatten") {
-                    analysis.nested = true;
-                }
-                Ok(())
-            })?;
-        }
-
-        // handle #[serde(...)]
-        if attr.path().is_ident("serde") {
-            // parse_nested_meta calls our closure for each comma-separated item inside the `(...)`
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("skip") {
-                    analysis.skip = true;
-                } else if meta.path.is_ident("default") {
-                    // `default` can appear as `default` or `default = "..."`; either way we mark has_default
-                    analysis.has_default = true;
-                }
-                // return Ok(()) to continue parsing other nested items
-                Ok(())
-            })?;
-        }
-    }
-
-    // keep your original semantics: required if not Option<T> and no default
-    analysis.required = !is_option_type(&field.ty) && !analysis.has_default;
-
-    Ok(analysis)
-}
-
-/// Check if a type is Option<T>
-fn is_option_type(ty: &Type) -> bool {
-    if let Type::Path(TypePath { path, .. }) = ty {
-        if let Some(segment) = path.segments.last() {
-            if segment.ident == "Option" {
-                return true;
-            }
-        }
-    }
-    false
 }
