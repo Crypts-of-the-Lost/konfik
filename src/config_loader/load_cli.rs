@@ -9,11 +9,7 @@ use std::ffi::OsString;
 
 impl ConfigLoader {
     pub(super) fn load_cli<T: ConfigMeta + clap::Parser>(current_config: &Value) -> Value {
-        //let metadata = T::config_metadata();
-
-        // Analyze which fields are still required
         let missing_required = T::find_missing_required_fields(current_config);
-        println!("{missing_required:?}");
 
         let mut cmd = T::command();
 
@@ -33,7 +29,6 @@ impl ConfigLoader {
         });
 
         let matches = cmd.get_matches();
-        println!("{matches:?}");
 
         Self::arg_matches_to_value(&matches, &missing_required)
     }

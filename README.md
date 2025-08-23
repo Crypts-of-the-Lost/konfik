@@ -11,7 +11,7 @@ A flexible and composable configuration parser for Rust applications that suppor
 - 🎯 **Priority System**: CLI args > Environment variables > Config files
 - ✅ **Validation**: Custom validation functions for your configuration
 - 🚀 **Zero Config**: Works out of the box with sensible defaults
-- 📦 **Derive Macro**: Simple `#[derive(Config)]` for easy setup
+- 📦 **Derive Macro**: Simple `#[derive(Konfik)]` for easy setup
 
 ## Quick Start
 
@@ -21,15 +21,16 @@ Add to your `Cargo.toml`:
 [dependencies]
 konfik = "0.1"
 serde = { version = "1.0", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] } # optional! only needed for cli arguments
 ```
 
 ### Basic Usage
 
 ```rust
-use konfik::{ConfigLoader, LoadConfig, Config};
+use konfik::{ConfigLoader, LoadConfig, Konfik};
 use serde::Deserialize;
 
-#[derive(Deserialize, Config, Debug)]
+#[derive(Deserialize, Konfik, Debug)]
 struct AppConfig {
     database_url: String,
     port: u16,
@@ -48,10 +49,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Advanced Configuration
 
 ```rust
-use konfik::{ConfigLoader, Error, Config};
+use konfik::{ConfigLoader, Error, Konfik};
 use serde::Deserialize;
+use clap::Parser;
 
-#[derive(Deserialize, Config, Debug)]
+#[derive(Deserialize, Konfik, Debug, Parser)]
 struct AppConfig {
     database_url: String,
     port: u16,
@@ -101,7 +103,7 @@ You can specify custom files:
 ```rust
 let config = ConfigLoader::default()
     .with_config_file("custom.toml")
-    .with_config_file("/etc/myapp/config.yaml")
+    .with_config_files(&["/etc/myapp/config.yaml", "config.json"])
     .load::<AppConfig>()?;
 ```
 
@@ -110,7 +112,7 @@ let config = ConfigLoader::default()
 Environment variables are automatically mapped from your struct fields:
 
 ```rust
-#[derive(Deserialize, Config)]
+#[derive(Deserialize, Konfik)]
 struct Config {
     database_url: String,  // DATABASE_URL
     api_key: String,       // API_KEY
@@ -128,46 +130,21 @@ let config = ConfigLoader::default()
 
 ### CLI Arguments
 
-CLI arguments use kebab-case conversion:
+The CLI is integrated with `clap`. It detects at runtime which fields are still
+missing and makes those required in the CLI:
 
 ```rust
-#[derive(Deserialize, Config)]
-struct Config {
+#[derive(Deserialize, Konfik)]
+struct Konfik {
     database_url: String,  // --database-url
     max_connections: u32,  // --max-connections
     debug: bool,          // --debug (flag, no value needed)
 }
 ```
 
-Example usage:
-
-```bash
-./myapp --database-url "postgres://localhost/db" --max-connections 100 --debug
-```
-
 ## Supported Types
 
-konfik supports all types that implement `serde::Deserialize`, including:
-
-- Primitives: `bool`, `i32`, `u32`, `f64`, `String`, etc.
-- Collections: `Vec<T>`, `HashMap<K, V>`, `BTreeMap<K, V>`, etc.
-- Optional values: `Option<T>`
-- Nested structs
-- Enums
-- Custom types with `Deserialize` implementation
-
-### Complex Types from Environment/CLI
-
-Environment variables and CLI arguments can parse complex types:
-
-```bash
-# JSON arrays and objects
-TAGS='["web", "api", "rust"]'
-CONFIG='{"timeout": 30, "retries": 3}'
-
-# CLI
-./app --tags '["web", "api"]' --config '{"timeout": 30}'
-```
+`Konfik` supports all types.
 
 ## Validation
 
@@ -194,67 +171,6 @@ let config = ConfigLoader::default()
         Ok(())
     })
     .load::<AppConfig>()?;
-```
-
-## Error Handling
-
-konfik provides detailed error information:
-
-```rust
-match AppConfig::load() {
-    Ok(config) => println!("Config loaded: {:#?}", config),
-    Err(Error::Io(e)) => eprintln!("Failed to read config file: {}", e),
-    Err(Error::ConfigParse { type_name, source }) => {
-        eprintln!("Failed to parse config for {}: {}", type_name, source)
-    }
-    Err(Error::Validation(msg)) => eprintln!("Config validation failed: {}", msg),
-    Err(e) => eprintln!("Config error: {}", e),
-}
-```
-
-## Examples
-
-### Web Server Configuration
-
-```rust
-use konfik::Config;
-use serde::Deserialize;
-
-#[derive(Deserialize, Config, Debug)]
-struct ServerConfig {
-    host: String,
-    port: u16,
-    workers: usize,
-    database_url: String,
-    redis_url: Option<String>,
-    log_level: String,
-    cors_origins: Vec<String>,
-}
-
-// config.toml
-// host = "0.0.0.0"
-// port = 8080
-// workers = 4
-// database_url = "postgres://localhost/myapp"
-// log_level = "info"
-// cors_origins = ["https://example.com"]
-
-// Environment override: PORT=3000
-// CLI override: ./server --port 9000 --log-level debug
-```
-
-### Database Configuration
-
-```rust
-#[derive(Deserialize, Config, Debug)]
-struct DatabaseConfig {
-    url: String,
-    max_connections: u32,
-    min_connections: u32,
-    connection_timeout: u64,
-    ssl_mode: String,
-    ssl_cert: Option<String>,
-}
 ```
 
 ## License

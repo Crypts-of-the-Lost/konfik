@@ -30,21 +30,18 @@ impl ConfigLoader {
                 config = Self::merge_json(config, file_config);
             }
         }
-        println!("{config:?}");
 
         // 2. Load from environment (medium priority)
         if self.env_prefix.is_some() {
             let env_config = self.load_env::<T>();
             config = Self::merge_json(config, env_config);
         }
-        println!("{config:?}");
 
         // 3. Load from CLI (highest priority)
         if self.cli_enabled {
             let cli_config = Self::load_cli::<T>(&config);
             config = Self::merge_json(config, cli_config);
         }
-        println!("{config:?}");
 
         // 4. Validate
         if let Some(validator) = &self.validation {
