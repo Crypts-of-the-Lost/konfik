@@ -43,10 +43,6 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
             fn load() -> Result<Self, ::konfik::Error> {
                 ::konfik::ConfigLoader::default().load()
             }
-
-            fn load_with_cli() -> Result<Self, ::konfik::Error> {
-                ::konfik::ConfigLoader::default().load_with_cli()
-            }
         }
     })
 }

@@ -39,7 +39,7 @@ impl Debug for ConfigLoader {
 impl Default for ConfigLoader {
     fn default() -> Self {
         Self {
-            env_prefix: None,
+            env_prefix: Some(String::new()),
             config_files: vec![
                 "config.json".into(),
                 "config.yaml".into(),

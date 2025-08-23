@@ -23,6 +23,9 @@ impl ConfigLoader {
                 .env_prefix
                 .as_ref()
                 .map_or(path_upper.clone(), |prefix| {
+                    if prefix.is_empty() {
+                        return path_upper;
+                    }
                     format!("{}_{path_upper}", prefix.to_uppercase())
                 });
 

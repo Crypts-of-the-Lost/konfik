@@ -1,7 +1,7 @@
-//! # Only for testing
+//! Advanced example with custom `ConfigLoader`, `clap` and a nested config
 
 use clap::Parser;
-use konfik::{ConfigLoader, Error, Konfik, Nested, config_meta::ConfigMeta};
+use konfik::{ConfigLoader, Error, Konfik, Nested};
 
 #[derive(serde::Deserialize, Konfik, Debug, Parser)]
 struct AppConfig {
@@ -30,8 +30,6 @@ struct Logging {
 }
 
 fn main() {
-    println!("{:?}", AppConfig::config_metadata());
-
     let config = ConfigLoader::default()
         .with_env_prefix("KONFIK")
         .with_config_file("app.toml")
