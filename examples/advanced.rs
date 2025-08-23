@@ -30,6 +30,8 @@ struct Logging {
 }
 
 fn main() {
+    println!("{:?}", AppConfig::config_metadata());
+
     let config = ConfigLoader::default()
         .with_env_prefix("KONFIK")
         .with_config_file("app.toml")
@@ -57,6 +59,4 @@ fn main() {
             return;
         }
     };
-
-    println!("{:?}", AppConfig::config_metadata());
 }

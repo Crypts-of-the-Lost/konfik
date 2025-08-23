@@ -12,7 +12,8 @@ impl ConfigLoader {
         //let metadata = T::config_metadata();
 
         // Analyze which fields are still required
-        let missing_required = T::analyze_required_fields(current_config);
+        let missing_required = T::find_missing_required_fields(current_config);
+        println!("{missing_required:?}");
 
         let mut cmd = T::command();
 

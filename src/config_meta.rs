@@ -20,57 +20,39 @@ pub trait ConfigMeta {
         })
     }
 
-    /// Analyzes the fields to find out which ones are required
-    #[must_use]
-    fn analyze_required_fields(current_config: &Value) -> HashSet<String> {
-        let metadata = Self::config_metadata();
-        Self::find_missing_required_fields(&metadata, current_config, "")
-    }
-
     /// Finds the missing required fields
     #[must_use]
-    fn find_missing_required_fields(
-        metadata: &[FieldMeta],
-        config: &Value,
-        path_prefix: &str,
-    ) -> HashSet<String> {
+    fn find_missing_required_fields(config: &Value) -> HashSet<String> {
+        let metadata = Self::config_metadata();
         let mut missing = HashSet::new();
 
         for field in metadata {
-            let field_path = if path_prefix.is_empty() {
-                field.name.to_string()
-            } else {
-                format!("{}.{}", path_prefix, field.name)
-            };
-
             if field.skip {
                 continue;
             }
 
-            if let Some(existing) = get_nested_value(config, &field_path) {
-                if !existing.is_null() {
-                    continue; // value already exists
-                }
-            }
+            let existing = Self::get_nested_value(config, &field.path);
 
-            if field.required && !field.has_default {
-                missing.insert(field_path);
+            if field.required && !field.has_default && existing.is_none_or(Value::is_null) {
+                missing.insert(field.path.to_string());
             }
         }
 
         missing
     }
-}
 
-fn get_nested_value<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
-    let mut current = value;
-    for key in path.split('.') {
-        match current {
-            Value::Object(map) => current = map.get(key)?,
-            _ => return None,
+    /// Gets the nested values of a JSON `Value`
+    #[must_use]
+    fn get_nested_value<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+        let mut current = value;
+        for key in path.split('.') {
+            match current {
+                Value::Object(map) => current = map.get(key)?,
+                _ => return None,
+            }
         }
+        Some(current)
     }
-    Some(current)
 }
 
 /// Field metadata with enhanced requirement detection
