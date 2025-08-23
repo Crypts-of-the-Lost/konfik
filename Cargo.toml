@@ -1,6 +1,6 @@
 [package]
 name = "konfik"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2024"
 description = "config parser"
 license-file = "LICENSE"
@@ -20,7 +20,7 @@ thiserror = "1.0"
 clap.workspace = true
 
 [dependencies.konfik_derive]
-version = "0.1"
+version = "0.2"
 path = "konfik_derive"
 
 [lints]
