@@ -35,7 +35,6 @@ fn main() {
     let config = ConfigLoader::default()
         .with_env_prefix("KONFIK")
         .with_config_file("app.toml")
-        .with_cli()
         .with_validation(|config| {
             if let Some(port) = config
                 .get("port")
@@ -47,7 +46,7 @@ fn main() {
             }
             Ok(())
         })
-        .load::<AppConfig>();
+        .load_with_cli::<AppConfig>();
 
     let _config = match config {
         Ok(cfg) => {

@@ -111,7 +111,7 @@ pub use error::Error;
 pub use konfik_derive::{Konfik, Nested};
 
 /// Simple trait for loading configuration
-pub trait LoadConfig: Sized + clap::Parser {
+pub trait LoadConfig: Sized {
     /// Load configuration from all available sources
     ///
     /// # Errors
@@ -134,5 +134,5 @@ pub trait LoadConfig: Sized + clap::Parser {
     /// 2. **Deserialization errors** – if converting the loaded configuration into `Self` fails.
     /// 3. **Validation errors** – if any validation defined in the loader fails.
     /// 4. **Other loader-specific errors** – any errors returned by the custom `ConfigLoader` in `load_with`.
-    fn load_with(loader: &ConfigLoader) -> Result<Self, Error>;
+    fn load_with_cli() -> Result<Self, Error>;
 }

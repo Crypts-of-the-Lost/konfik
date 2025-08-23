@@ -44,8 +44,8 @@ pub fn derive_config(input: TokenStream) -> TokenStream {
                 ::konfik::ConfigLoader::default().load()
             }
 
-            fn load_with(loader: &::konfik::ConfigLoader) -> Result<Self, ::konfik::Error> {
-                loader.load()
+            fn load_with_cli() -> Result<Self, ::konfik::Error> {
+                ::konfik::ConfigLoader::default().load_with_cli()
             }
         }
     })

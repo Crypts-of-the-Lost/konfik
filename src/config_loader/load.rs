@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 kingananas20
 
-use std::fmt::Debug;
-
 use super::ConfigLoader;
 use crate::{Error, config_meta::ConfigMeta};
+use clap::Parser;
 use serde::de::DeserializeOwned;
 
 impl ConfigLoader {
-    /// Load configuration of type T
+    /// Load the configuration, from the specified sources but without CLI args, of type `T`.
     ///
     /// # Errors
     ///
@@ -20,7 +19,7 @@ impl ConfigLoader {
     /// 4. **Other internal errors** – any other errors returned by `Self::load_file`, `Self::load_env`, or `Self::load_cli`.
     pub fn load<T>(&self) -> Result<T, Error>
     where
-        T: DeserializeOwned + ConfigMeta + Debug + clap::Parser,
+        T: DeserializeOwned + ConfigMeta,
     {
         let mut config = serde_json::Value::Object(serde_json::Map::new());
 
@@ -37,11 +36,49 @@ impl ConfigLoader {
             config = Self::merge_json(config, env_config);
         }
 
-        // 3. Load from CLI (highest priority)
-        if self.cli_enabled {
-            let cli_config = Self::load_cli::<T>(&config);
-            config = Self::merge_json(config, cli_config);
+        // 4. Validate
+        if let Some(validator) = &self.validation {
+            validator(&config)?;
         }
+
+        // 5. Deserialize
+        serde_json::from_value::<T>(config).map_err(|e| Error::ConfigParse {
+            type_name: std::any::type_name::<T>(),
+            source: e,
+        })
+    }
+
+    /// Load the configuration, from the specified sources with CLI args, of type `T`.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an `Error` in the following situations:
+    ///
+    /// 1. **File I/O errors** – if reading any of the configuration files in `self.config_files` fails.
+    /// 2. **Deserialization errors** – if `serde_json::from_value` fails to convert the merged JSON into type `T`.
+    /// 3. **Validation errors** – if a validator function is provided in `self.validation` and it returns an error.
+    /// 4. **Other internal errors** – any other errors returned by `Self::load_file`, `Self::load_env`, or `Self::load_cli`.
+    pub fn load_with_cli<T>(&self) -> Result<T, Error>
+    where
+        T: DeserializeOwned + ConfigMeta + Parser,
+    {
+        let mut config = serde_json::Value::Object(serde_json::Map::new());
+
+        // 1. Load from config files (lowest priority)
+        for file_path in &self.config_files {
+            if let Some(file_config) = Self::load_file(file_path)? {
+                config = Self::merge_json(config, file_config);
+            }
+        }
+
+        // 2. Load from environment (medium priority)
+        if self.env_prefix.is_some() {
+            let env_config = self.load_env::<T>();
+            config = Self::merge_json(config, env_config);
+        }
+
+        let cli_config = Self::load_cli::<T>(&config);
+        config = Self::merge_json(config, cli_config);
 
         // 4. Validate
         if let Some(validator) = &self.validation {
