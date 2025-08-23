@@ -3,103 +3,175 @@
 
 //! # konfik
 //!
-//! A flexible and composable configuration parser for Rust applications that supports
-//! loading configuration from multiple sources with a clear priority system.
+//! A flexible and composable configuration parser for Rust applications that supports multiple sources and formats.
 //!
 //! ## Features
 //!
-//! - **Multiple Sources**: Load from config files, environment variables, and CLI arguments
-//! - **Multiple Formats**: JSON, YAML, and TOML support out of the box
-//! - **Priority System**: CLI args > Environment variables > Config files
-//! - **Type Safety**: Strongly typed configuration with full serde integration
-//! - **Validation**: Custom validation functions for configuration consistency
-//! - **Zero Config**: Sensible defaults that work immediately
-//! - **Derive Macro**: Simple `#[derive(Config)]` setup
+//! - 🔧 **Multiple Sources**: Load configuration from files, environment variables, and CLI arguments
+//! - 📁 **Multiple Formats**: Support for JSON, YAML, and TOML configuration files
+//! - 🎯 **Priority System**: CLI args > Environment variables > Config files
+//! - ✅ **Validation**: Custom validation functions for your configuration
+//! - 🚀 **Zero Config**: Works out of the box with sensible defaults
+//! - 📦 **Derive Macro**: Simple `#[derive(Konfik)]` for easy setup
 //!
 //! ## Quick Start
 //!
+//! Add to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! konfik = "0.1"
+//! serde = { version = "1.0", features = ["derive"] }
+//! clap = { version = "4.5", features = ["derive"] } # optional! only needed for cli arguments
+//! ```
+//!
+//! ### Basic Usage
+//!
 //! ```rust
-//! use konfik::{ConfigLoader, LoadConfig, Config};
+//! use konfik::{ConfigLoader, LoadConfig, Konfik};
 //! use serde::Deserialize;
 //!
-//! #[derive(Deserialize, Config, Debug)]
+//! #[derive(Deserialize, Konfik, Debug)]
 //! struct AppConfig {
 //!     database_url: String,
 //!     port: u16,
 //!     debug: bool,
 //! }
 //!
-//! fn main() -> Result<(), konfik::Error> {
-//!     // Load configuration from all sources
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Load with defaults (looks for config.json, config.yaml, config.toml)
 //!     let config = AppConfig::load()?;
+//!
 //!     println!("Config: {:#?}", config);
 //!     Ok(())
 //! }
 //! ```
 //!
-//! ## Configuration Sources
-//!
-//! konfik loads configuration from multiple sources in priority order:
-//!
-//! 1. **CLI Arguments** (highest) - `--database-url`, `--port`, `--debug`
-//! 2. **Environment Variables** - `DATABASE_URL`, `PORT`, `DEBUG`  
-//! 3. **Configuration Files** (lowest) - `config.json`, `config.yaml`, `config.toml`
-//!
-//! ## Advanced Usage
+//! ### Advanced Configuration
 //!
 //! ```rust
-//! use konfik::{ConfigLoader, Error};
+//! use konfik::{ConfigLoader, Error, Konfik};
+//! use serde::Deserialize;
+//! use clap::Parser;
 //!
-//! let config = ConfigLoader::default()
-//!     .with_env_prefix("MYAPP")           // MYAPP_DATABASE_URL, etc.
-//!     .with_config_file("app.toml")       // Custom config file
-//!     .with_cli()                         // Enable CLI parsing
-//!     .with_validation(|config| {         // Custom validation
-//!         if let Some(port) = config.get("port").and_then(|v| v.as_u64()) {
-//!             if port > 65535 {
-//!                 return Err(Error::Validation("Invalid port".to_string()));
+//! #[derive(Deserialize, Konfik, Debug, Parser)]
+//! struct AppConfig {
+//!     database_url: String,
+//!     port: u16,
+//!     debug: bool,
+//!     #[serde(skip)]
+//!     runtime_data: Option<String>,
+//! }
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let config = ConfigLoader::default()
+//!         .with_env_prefix("MYAPP")           // Environment variables: MYAPP_DATABASE_URL, etc.
+//!         .with_config_file("app.toml")       // Additional config file
+//!         .with_cli()                         // Enable CLI argument parsing
+//!         .with_validation(|config| {         // Custom validation
+//!             if let Some(port) = config.get("port").and_then(|v| v.as_u64()) {
+//!                 if port > 65535 {
+//!                     return Err(Error::Validation("Port must be <= 65535".to_string()));
+//!                 }
 //!             }
-//!         }
-//!         Ok(())
-//!     })
+//!             Ok(())
+//!         })
+//!         .load::<AppConfig>()?;
+//!
+//!     println!("Loaded config: {:#?}", config);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Configuration Sources & Priority
+//!
+//! konfik loads configuration from multiple sources in the following priority order (higher priority overrides lower):
+//!
+//! 1. **CLI Arguments** (highest priority)
+//! 2. **Environment Variables**
+//! 3. **Configuration Files** (lowest priority)
+//!
+//! ### Configuration Files
+//!
+//! By default, konfik looks for these files in the current directory:
+//!
+//! - `config.json`
+//! - `config.yaml`
+//! - `config.toml`
+//!
+//! You can specify custom files:
+//!
+//! ```rust
+//! let config = ConfigLoader::default()
+//!     .with_config_file("custom.toml")
+//!     .with_config_files(&["/etc/myapp/config.yaml", "config.json"])
 //!     .load::<AppConfig>()?;
 //! ```
 //!
-//! ## Field Mapping
+//! ### Environment Variables
 //!
-//! Field names are automatically converted for different sources:
+//! Environment variables are automatically mapped from your struct fields:
 //!
-//! | Rust Field | Environment Variable | CLI Argument |
-//! |------------|---------------------|--------------|
-//! | `database_url` | `DATABASE_URL` | `--database-url` |
-//! | `maxConnections` | `MAX_CONNECTIONS` | `--max-connections` |
-//! | `apiKey` | `API_KEY` | `--api-key` |
+//! ```rust
+//! #[derive(Deserialize, Konfik)]
+//! struct Config {
+//!     database_url: String,  // DATABASE_URL
+//!     api_key: String,       // API_KEY
+//!     max_connections: u32,  // MAX_CONNECTIONS
+//! }
+//! ```
+//!
+//! With a prefix:
+//!
+//! ```rust
+//! let config = ConfigLoader::default()
+//!     .with_env_prefix("MYAPP")  // MYAPP_DATABASE_URL, MYAPP_API_KEY, etc.
+//!     .load::<Config>()?;
+//! ```
+//!
+//! ### CLI Arguments
+//!
+//! The CLI is integrated with `clap`. It detects at runtime which fields are still
+//! missing and makes those required in the CLI:
+//!
+//! ```rust
+//! #[derive(Deserialize, Konfik)]
+//! struct Konfik {
+//!     database_url: String,  // --database-url
+//!     max_connections: u32,  // --max-connections
+//!     debug: bool,          // --debug (flag, no value needed)
+//! }
+//! ```
 //!
 //! ## Supported Types
 //!
-//! All types implementing `serde::Deserialize` are supported:
+//! `Konfik` supports all types.
 //!
-//! - Primitives: `bool`, `i32`, `String`, etc.
-//! - Collections: `Vec<T>`, `HashMap<K,V>`, etc.
-//! - Optional: `Option<T>`
-//! - Nested structs and enums
-//! - Complex JSON from environment variables and CLI
+//! ## Validation
 //!
-//! ## Error Handling
-//!
-//! The [`Error`] enum provides detailed error information for all failure cases:
+//! Add custom validation logic:
 //!
 //! ```rust
-//! match config.load::<AppConfig>() {
-//!     Ok(config) => println!("Success: {:#?}", config),
-//!     Err(Error::ConfigParse { type_name, source }) => {
-//!         eprintln!("Failed to parse {}: {}", type_name, source);
-//!     }
-//!     Err(Error::Validation(msg)) => {
-//!         eprintln!("Validation failed: {}", msg);
-//!     }
-//!     Err(e) => eprintln!("Error: {}", e),
-//! }
+//! let config = ConfigLoader::default()
+//!     .with_validation(|config| {
+//!         // Validate port range
+//!         if let Some(port) = config.get("port").and_then(|v| v.as_u64()) {
+//!             if !(1024..=65535).contains(&port) {
+//!                 return Err(Error::Validation("Port must be between 1024 and 65535".into()));
+//!             }
+//!         }
+//!
+//!         // Validate required combinations
+//!         let has_ssl = config.get("ssl_enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+//!         let has_ssl_cert = config.get("ssl_cert_path").and_then(|v| v.as_str()).is_some();
+//!
+//!         if has_ssl && !has_ssl_cert {
+//!             return Err(Error::Validation("SSL enabled but no certificate path provided".into()));
+//!         }
+//!
+//!         Ok(())
+//!     })
+//!     .load::<AppConfig>()?;
 //! ```
 
 mod config_loader;
