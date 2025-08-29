@@ -173,6 +173,15 @@ let config = ConfigLoader::default()
     .load::<AppConfig>()?;
 ```
 
+## Try it out
+
+To try it out yourself, clone the repo, and run any of the example programs.
+
+```sh
+git clone https://github.com/kingananas20/konfik
+cargo run --example <example_name>
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
